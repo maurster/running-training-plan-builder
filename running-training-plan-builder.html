@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Running Training Plan Builder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg: #f6f7fb;
+    --card: #fff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --brand:#2563eb;
+    --border:#d1d5db;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';background:linear-gradient(135deg,#eef5ff 0%,#f3e8ff 100%) fixed;color:var(--text)}
+  .container{max-width:720px;margin:24px auto;padding:12px}
+  body[data-mode="app"] .container{max-width:1200px}
+  .card{background:var(--card);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:20px}
+  h1{margin:0 0 24px 0;font-size:28px;font-weight:700;color:#1f2937}
+  .title-input{width:100%;font-size:28px;font-weight:700;border:0;border-bottom:2px solid #93c5fd;padding:6px 2px;outline:none}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{border:0;border-radius:8px;padding:12px 16px;cursor:pointer;font-weight:400;display:inline-flex;gap:8px;align-items:center;font-size:14px;line-height:1;justify-content:center;text-align:center}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none}
+  .btn-blue{background:#2563eb;color:#fff}
+  .btn-purple{background:#7c3aed;color:#fff}
+  .btn-indigo{background:#4f46e5;color:#fff}
+  .btn-green{background:#16a34a;color:#fff}
+  .btn-gray{background:#6b7280;color:#fff}
+  .btn-red{background:#dc2626;color:#fff}
+  .btn-blue:hover{background:#1e40af}
+  .btn-purple:hover{background:#5b21b6}
+  .btn-indigo:hover{background:#3730a3}
+  .btn-green:hover{background:#15803d}
+  .btn-gray:hover{background:#4b5563}
+  .btn-red:hover{background:#b91c1c}
+  label{font-weight:400;color:#374151}
+  input[type="number"],input[type="text"],input[type="date"],select,textarea{
+    border:1px solid var(--border);border-radius:8px;padding:10px 12px;outline:none
+  }
+  #weeksInput{font-size:16px;height:38px;padding:8px 10px;}
+  input:focus,select:focus,textarea:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+  .switch{position:relative;width:44px;height:24px;background:#d1d5db;border-radius:999px;cursor:pointer;display:inline-block;vertical-align:middle}
+  .switch[data-on="true"]{background:#2563eb}
+  .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .18s}
+  .switch[data-on="true"] .knob{transform:translateX(20px)}
+  .notice{margin-top:10px;background:#ecfdf5;border:1px solid #34d399;color:#065f46;padding:8px 10px;border-radius:8px}
+  .stack{display:flex;flex-direction:column;gap:12px}
+  .field-group{display:flex;flex-direction:column;gap:8px}
+  table{width:100%;border-collapse:collapse}
+  th,td{border:1px solid #e5e7eb}
+  thead th{background:#111827;color:#fff;padding:10px;font-size:14px;text-align:center;vertical-align:middle;font-weight:400;line-height:1.9}
+  td{padding:8px;vertical-align:top}
+  .week-col{width:48px;text-align:center;vertical-align:middle;font-weight:400}
+  .week-handle{cursor:grab; user-select:none; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .week-handle .grip{font-size:12px; color:#6b7280}
+  .day-col{width:160px}
+  thead .mileage-col{color:#ffffff}
+  .mileage-col{width:80px;text-align:center;vertical-align:middle;font-weight:400}
+  .mileage-td{color:#2563eb !important;font-size:13px !important;text-align:center;vertical-align:middle;font-weight:400}
+  .actions-col{width:128px;text-align:center;vertical-align:middle}
+  .cell{min-height:90px;border-radius:8px;padding:8px;cursor:move;transition:opacity .15s}
+  .cell:hover{opacity:.9}
+  .date-badge{font-size:10px;color:#6b7280;font-weight:700;margin-bottom:4px}
+  .type{font-weight:700;font-size:13px}
+  .dist{font-size:12px;margin-top:3px;color:#374151}
+  .details{font-size:12px;margin-top:3px;color:#4b5563;white-space:pre-wrap;word-break:break-word}
+  .edit-wrap{display:flex;flex-direction:column;gap:8px;min-width:220px}
+  .edit-actions{display:flex;gap:8px}
+  .icon-btn{border:0;border-radius:8px;padding:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+  .icon-btn.green{background:#22c55e;color:#fff}
+  .icon-btn.gray{background:#6b7280;color:#fff}
+  .icon-btn.blue{background:#3b82f6;color:#fff}
+  .icon-btn.red{background:#ef4444;color:#fff}
+  .cell-actions{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+
+  /* Background colour utility classes (needed for chips and cells) */
+  .bg-gray{background-color:#f3f4f6 !important}
+  .bg-blue{background-color:#dbeafe !important}
+  .bg-purple{background-color:#f3e8ff !important}
+  .bg-orange{background-color:#fed7aa !important}
+  .bg-red{background-color:#fee2e2 !important}
+  .bg-green{background-color:#d1fae5 !important}
+  .bg-yellow{background-color:#fef3c7 !important}
+  .bg-pink{background-color:#fce7f3 !important}
+  .bg-indigo{background-color:#e0e7ff !important}
+  .bg-cyan{background-color:#cffafe !important}
+  .bg-lime{background-color:#ecfccb !important}
+  .bg-amber{background-color:#fef3c7 !important}
+  .bg-emerald{background-color:#d1fae5 !important}
+  .bg-teal{background-color:#ccfbf1 !important}
+  .bg-sky{background-color:#e0f2fe !important}
+  .bg-violet{background-color:#ede9fe !important}
+  .bg-fuchsia{background-color:#fae8ff !important}
+  .bg-rose{background-color:#ffe4e6 !important}
+  /* Week insertion markers (between rows) */
+  tr.insert-bottom > td { border-bottom: 2px dashed var(--brand) !important; }
+  tr.insert-top > td { border-top: 2px dashed var(--brand) !important; }
+
+  /* Edit Workouts grid */
+  .mgr{margin-top:16px}
+  .mgr-title{font-weight:600;margin:12px 0 6px 0}
+  .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .witem{display:flex;flex-direction:column;gap:8px;border:1px solid var(--border);border-radius:10px;padding:8px 10px;align-items:stretch;overflow:visible}
+  .whead{display:flex;align-items:center;gap:8px;width:100%}
+  .chip{width:22px;height:22px;border-radius:6px;border:1px solid #d1d5db;cursor:pointer;display:inline-block;position:relative;flex:0 0 22px}
+  .wname{flex:1;min-width:0}
+  .wname[contenteditable="true"]{outline:2px solid rgba(37,99,235,.25);border-radius:6px;padding:2px 4px}
+  .tiny{font-size:12px;color:#6b7280}
+
+  /* Inline editor popover */
+  .editor{margin-top:8px;border:1px dashed var(--border);border-radius:10px;padding:10px;width:100%;max-width:100%;overflow:visible;background:var(--panel,#fff);position:relative;z-index:2;box-sizing:border-box}
+  .palette{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;max-width:100%;max-height:220px;overflow:auto;padding:6px;box-sizing:border-box}
+  .chip.preset{outline:2px solid transparent}
+  .chip.preset.selected{outline-color:#111827}
+  .editor-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .danger{background:#ef4444;color:#fff;border:0;border-radius:8px;padding:8px 10px;cursor:pointer}
+  .danger[disabled]{opacity:.5;cursor:not-allowed}
+.xdel{margin-left:auto;width:24px;height:24px;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;font-weight:700;line-height:1;background:transparent;color:var(--text);}
+.xdel[disabled]{opacity:.4;cursor:not-allowed}
+/* ensure the editor area never clips the palette */
+.editor{margin-top:8px;border:1px dashed var(--border);border-radius:10px;padding:10px;width:100%;max-width:100%;overflow:visible;background:var(--panel,#fff);position:relative;z-index:2;box-sizing:border-box}
+/* palette sizing and scroll if tall */
+.palette{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;max-width:100%;max-height:220px;overflow:auto;padding:6px;box-sizing:border-box}
+
+.btn-teal{
+  background-color:#14b8a6;
+  color:white;
+}
+.btn-teal:hover{
+  background-color:#0d9488;
+}
+
+#startDate, label[for="startDate"] {
+  font-size:16px !important;
+}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body data-mode="splash">
+<div class="container">
+  <div id="splash" class="card">
+    <h1>Running Training Plan Builder</h1>
+    <div class="stack">
+      <div class="field-group">
+        <label for="weeksInput">How many weeks do you want to train?</label>
+        <input id="weeksInput" type="number" min="1" max="52" value="12" />
+      </div>
+      <button class="btn btn-blue" id="createBtn">Create Training Plan</button>
+      <button class="btn btn-purple" id="loadSavedBtn">Load Saved Plan</button>
+      <label class="btn btn-indigo" style="cursor:pointer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import Training Plan
+        <input id="importFile" type="file" accept=".json" style="display:none" />
+      </label>
+    </div>
+    <div id="splashMsg" class="notice" style="display:none"></div>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="card toolbar">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div style="flex:1;min-width:240px">
+          <h1 id="titleDisplay" class="clickable" title="Click to edit title">My Training Plan</h1>
+          <input id="titleInput" class="title-input" style="display:none" />
+        </div>
+        <div class="row" style="gap:8px;white-space:nowrap">
+          <button class="btn btn-blue" id="saveBtn" title="Save">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save
+          </button>
+          <button class="btn btn-purple" id="exportBtn" title="Export plan as file">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <label class="btn btn-indigo" style="cursor:pointer" title="Import">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import
+            <input id="importFileTop" type="file" accept=".json" style="display:none" />
+          </label>
+
+          <button class="btn btn-teal" id="printBtn" title="Print">Print</button>
+
+          <button class="btn btn-green" id="downloadHtmlBtn" title="Download HTML">Download HTML</button>
+          <button class="btn btn-gray" id="newBtn" title="New Plan">New Plan</button>
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="row" style="align-items:center">
+        <label>Show dates:</label>
+        <div id="showDatesSwitch" class="switch" data-on="false" role="button" aria-label="toggle dates"><div class="knob"></div></div>
+        <label for="startDate">Start date:</label>
+        <input id="startDate" type="date" class="start-date" />
+        <div style="margin-left:auto; display:flex; gap:6px;">
+          <button class="icon-btn blue solo" id="undoBtn" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+          <button class="icon-btn red solo" id="redoBtn" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+        </div>
+      </div>
+
+      <div id="saveMsg" class="notice" style="display:none;margin-top:12px"></div>
+    </div>
+
+    <div class="card" style="overflow:auto; margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th class="week-col">Week</th>
+            <th class="day-col">Monday</th>
+            <th class="day-col">Tuesday</th>
+            <th class="day-col">Wednesday</th>
+            <th class="day-col">Thursday</th>
+            <th class="day-col">Friday</th>
+            <th class="day-col">Saturday</th>
+            <th class="day-col">Sunday</th>
+            <th class="mileage-col">Weekly<br/>Mileage</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="planBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <p class="mgr-title">Add Workout</p>
+      <div class="row">
+        <input id="newWorkoutName" type="text" placeholder="Enter workout name" style="flex:1;min-width:240px" />
+        <button class="btn btn-blue" id="addWorkoutBtn">Add Workout</button>
+      </div>
+
+      <div class="mgr">
+        <p class="mgr-title">Edit Workouts</p>
+        <div id="workoutGrid" class="grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+const DEFAULT_WORKOUT_TYPES = [
+  { value:'rest', label:'Rest', color:'bg-gray' },
+  { value:'easy', label:'Easy Run', color:'bg-blue' },
+  { value:'interval', label:'Interval', color:'bg-red' },
+  { value:'long', label:'Long Run', color:'bg-purple' },
+  { value:'progressive', label:'Progressive Run', color:'bg-indigo' },
+  { value:'tempo', label:'Tempo Run', color:'bg-orange' },
+  { value:'strength', label:'Strength', color:'bg-green' },
+  { value:'race', label:'Race', color:'bg-pink' },
+];
+
+const PALETTE = [
+  {cls:'bg-gray', hex:'#f3f4f6'},
+  {cls:'bg-blue', hex:'#dbeafe'},
+  {cls:'bg-purple', hex:'#f3e8ff'},
+  {cls:'bg-orange', hex:'#fed7aa'},
+  {cls:'bg-red', hex:'#fee2e2'},
+  {cls:'bg-green', hex:'#d1fae5'},
+  {cls:'bg-yellow', hex:'#fef3c7'},
+  {cls:'bg-pink', hex:'#fce7f3'},
+  {cls:'bg-indigo', hex:'#e0e7ff'},
+  {cls:'bg-cyan', hex:'#cffafe'},
+  {cls:'bg-lime', hex:'#ecfccb'},
+  {cls:'bg-amber', hex:'#fef3c7'},
+  {cls:'bg-emerald', hex:'#d1fae5'},
+  {cls:'bg-teal', hex:'#ccfbf1'},
+  {cls:'bg-sky', hex:'#e0f2fe'},
+  {cls:'bg-violet', hex:'#ede9fe'},
+  {cls:'bg-fuchsia', hex:'#fae8ff'},
+  {cls:'bg-rose', hex:'#ffe4e6'}
+];
+
+let weeks = 12;
+let plan = {};
+let editing = null;
+let temp = { type:'rest', mileage:'', details:'' };
+let planTitle = 'My Training Plan';
+let customWorkouts = [];
+let defaultWorkouts = JSON.parse(JSON.stringify(DEFAULT_WORKOUT_TYPES));
+let showDates = false;
+let startDate = (new Date()).toISOString().split('T')[0];
+let dragged = null;
+
+let draggingWeek = null;
+let insertIndex = null;
+
+function allTypes(){ return [...defaultWorkouts, ...customWorkouts]; }
+function findTypeIndex(value){
+  let i = defaultWorkouts.findIndex(x=>x.value===value);
+  if(i>-1) return {which:'default', idx:i};
+  i = customWorkouts.findIndex(x=>x.value===value);
+  if(i>-1) return {which:'custom', idx:i};
+  return {which:null, idx:-1};
+}
+
+function normalizePaletteColor(val){
+  if(!val) return 'bg-gray';
+  if(/^bg-/.test(val)) return val;
+  if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val)) return val;
+  const found = PALETTE.find(p=>p.cls===val);
+  return found ? found.cls : 'bg-gray';
+}
+function getWorkoutColor(id){
+  const w = allTypes().find(x=>x.value===id);
+  return w && w.color ? normalizePaletteColor(w.color) : 'bg-gray';
+}
+function getWorkoutLabel(id){
+  const w = allTypes().find(x=>x.value===id);
+  return w ? w.label : 'Rest';
+}
+function mapColorToHex(colorId){
+  if(/^#/.test(colorId)) return colorId;
+  const p = PALETTE.find(p=>p.cls===colorId);
+  return p ? p.hex : '#f3f4f6';
+}
+function weeklyMileage(week){
+  if(!plan[week]) return '0.0';
+  return DAYS.reduce((t,d)=> t + (Number(plan[week][d]?.mileage||0)), 0).toFixed(1);
+}
+function initEmptyPlan(n){
+  const p={};
+  for(let w=1; w<=n; w++){
+    p[w]={};
+    DAYS.forEach(d=>{ p[w][d]={ type:'rest', details:'', mileage:0 }; });
+  }
+  return p;
+}
+function getDateForCell(week, dayIndex){
+  if(!startDate) return '';
+  const start = new Date(startDate + 'T00:00:00');
+  const dow = start.getDay();
+  const sub = (dow===0?6:dow-1);
+  start.setDate(start.getDate()-sub);
+  const daysToAdd = (Number(week)-1)*7 + dayIndex;
+  const cellDate = new Date(start);
+  cellDate.setDate(start.getDate()+daysToAdd);
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  return cellDate.getDate() + ' ' + months[cellDate.getMonth()];
+}
+
+/* ===== Persistence ===== */
+function saveToLocal(){
+  try{
+    const data = { plan, title:planTitle, customWorkouts, defaultWorkouts, showDates, startDate, savedDate: new Date().toISOString() };
+    localStorage.setItem('trainingPlan', JSON.stringify(data));
+    flashMsg('saveMsg','Plan saved successfully!');
+  }catch(e){ flashMsg('saveMsg','Error saving plan. Plan may be too large.'); }
+}
+function tryLoadSaved(showToast=true){
+  try{
+    const s = localStorage.getItem('trainingPlan');
+    if(!s){ if(showToast) flashMsg('splashMsg','No saved plan found.'); return false; }
+    const data = JSON.parse(s);
+    if(!data || !data.plan || Object.keys(data.plan).length===0){ if(showToast) flashMsg('splashMsg','No saved plan found.'); return false; }
+    plan = data.plan || {};
+    planTitle = data.title || 'My Training Plan';
+    customWorkouts = (data.customWorkouts || []).map(w=>({ ...w, color: normalizePaletteColor(w.color) }));
+    defaultWorkouts = (data.defaultWorkouts || JSON.parse(JSON.stringify(DEFAULT_WORKOUT_TYPES))).map(w=>({ ...w, color: normalizePaletteColor(w.color) }));
+    weeks = Object.keys(plan).length;
+    showDates = !!data.showDates;
+    if(data.startDate) startDate = data.startDate;
+    if(showToast) flashMsg('splashMsg','Saved plan loaded successfully!');
+    enterApp();
+    return true;
+  }catch(e){ if(showToast) flashMsg('splashMsg','Error loading plan.'); return false; }
+}
+
+/* ===== UI Helpers ===== */
+function flashMsg(id,text){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.style.display='block';
+  setTimeout(()=>{ el.style.display='none'; }, 2500);
+}
+function renderSplash(){
+  const inSplash = (Object.keys(plan).length===0);
+  document.getElementById('splash').style.display = inSplash?'block':'none';
+  document.getElementById('app').style.display = inSplash?'none':'block';
+  document.body.setAttribute('data-mode', inSplash ? 'splash' : 'app');
+}
+function enterApp(){
+  renderSplash();
+
+// --- Enhanced auto-select that survives the click ---
+(function(){
+  const isEditable = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (!isEditable(el)) return;
+    try { el.select && el.select(); } catch {}
+    try { el.setSelectionRange && el.setSelectionRange(0, (el.value||'').length); } catch {}
+    // mark so we can prevent the immediate mouseup from collapsing the selection
+    el.__selectedOnFocus = true;
+  });
+
+  const freezeCaret = e => {
+    const el = e.target;
+    if (!isEditable(el) || !el.__selectedOnFocus) return;
+    // Prevent caret re-position on the initial click/tap
+    e.preventDefault();
+    el.__selectedOnFocus = false;
+  };
+
+  // capture phase to intercept before the default sets the caret
+  document.addEventListener('mouseup', freezeCaret, true);
+  document.addEventListener('touchend', freezeCaret, true);
+})();
+
+document.addEventListener('focusin', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    e.target.select?.();
+  }
+});
+
+  document.getElementById('titleDisplay').textContent = planTitle;
+  document.getElementById('titleInput').value = planTitle;
+  const sd = document.getElementById('startDate');
+  sd.value = startDate;
+  const sw = document.getElementById('showDatesSwitch');
+  sw.setAttribute('data-on', showDates ? 'true' : 'false');
+  renderWorkoutGrid();
+  renderTable();
+}
+
+/* ===== Edit Workouts grid ===== */
+
+function renderWorkoutGrid(){
+  const grid = document.getElementById('workoutGrid');
+  grid.innerHTML = '';
+  const all = allTypes();
+  all.forEach(w=>{
+    const tile = document.createElement('div');
+    tile.className='witem';
+
+    const head = document.createElement('div');
+    head.className='whead';
+
+    const chip = document.createElement('span');
+    chip.className='chip';
+    const col = normalizePaletteColor(w.color);
+    if(/^bg-/.test(col)){
+      chip.classList.add(col);
+      chip.style.background = '';
+    }else{
+      chip.style.background = col;
+    }
+    chip.title='Click to edit colour or name';
+    chip.addEventListener('click', ()=> toggleEditor(w.value, tile));
+
+    const name = document.createElement('div');
+    name.className='wname';
+    name.textContent = w.label;
+    name.title = 'Click to rename';
+    name.addEventListener('click', ()=>makeEditableName(name, w.value));
+
+    const delBtn = document.createElement('button');
+    delBtn.className='xdel';
+    delBtn.type='button';
+    delBtn.title='Delete workout';
+    delBtn.textContent='×';
+    if(w.value==='rest'){ delBtn.disabled = true; delBtn.title='Cannot delete Rest'; }
+    delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(!delBtn.disabled){ deleteWorkoutType(w.value); }});
+
+    head.appendChild(chip);
+    head.appendChild(name);
+    head.appendChild(delBtn);
+    tile.appendChild(head);
+
+    grid.appendChild(tile);
+  });
+}
+
+function makeEditableName(node, value){
+  node.setAttribute('contenteditable','true');
+  node.focus();
+  const end = document.createRange();
+  end.selectNodeContents(node);
+  end.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(end);
+
+  function done(commit){
+    node.removeAttribute('contenteditable');
+    node.removeEventListener('blur', onBlur);
+    node.removeEventListener('keydown', onKey);
+    if(commit){
+      const txt = (node.textContent||'').trim();
+      if(txt){
+        renameWorkout(value, txt);
+      }else{
+        node.textContent = getWorkoutLabel(value);
+      }
+    }else{
+      node.textContent = getWorkoutLabel(value);
+    }
+  }
+  function onBlur(){ done(true); }
+  function onKey(e){
+    if(e.key==='Enter'){ e.preventDefault(); done(true); }
+    if(e.key==='Escape'){ e.preventDefault(); done(false); }
+  }
+  node.addEventListener('blur', onBlur);
+  node.addEventListener('keydown', onKey);
+}
+
+function renameWorkout(value, newLabel){
+  const {which, idx} = findTypeIndex(value);
+  if(which==='default'){ defaultWorkouts[idx] = { ...defaultWorkouts[idx], label:newLabel }; }
+  else if(which==='custom'){ customWorkouts[idx] = { ...customWorkouts[idx], label:newLabel }; }
+  renderWorkoutGrid(); renderTable(); saveHistory();
+}
+
+function toggleEditor(value, container){
+  const open = container.querySelector('.editor');
+  if(open){ open.remove(); return; }
+
+  const w = allTypes().find(x=>x.value===value);
+  const current = normalizePaletteColor(w.color);
+  const editor = document.createElement('div'); editor.className='editor';
+  // Close on click outside
+  const outsideHandler = (ev)=>{
+    if(!container.contains(ev.target)){
+      const open = container.querySelector('.editor');
+      if(open){ open.remove(); }
+      document.removeEventListener('click', outsideHandler, true);
+    }
+  };
+  // Use capture to detect early in bubbling
+  setTimeout(()=>document.addEventListener('click', outsideHandler, true), 0);
+  // Also close on Escape
+  editor.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ const open=container.querySelector('.editor'); if(open){ open.remove(); document.removeEventListener('click', outsideHandler, true);} } });
+
+  const palette = document.createElement('div'); palette.className='palette';
+  PALETTE.forEach(p=>{
+    const sw = document.createElement('span'); sw.className='chip preset'; sw.title=p.cls;
+    sw.style.background = p.hex;
+    if(current===p.cls) sw.classList.add('selected');
+    sw.addEventListener('click', ()=>{ setWorkoutColor(value, p.cls); renderWorkoutGrid(); renderTable(); saveHistory(); });
+    palette.appendChild(sw);
+  });
+
+  const row = document.createElement('div'); row.className='editor-row';
+  const label1 = document.createElement('span'); label1.className='tiny'; label1.textContent='Pick any colour:';
+  const input = document.createElement('input');
+  input.addEventListener('focus', e => e.target.select()); input.type='color'; input.value = /^#/.test(current) ? current : mapColorToHex(current);
+  input.addEventListener('input', e=>{ setWorkoutColor(value, e.target.value); renderWorkoutGrid(); renderTable(); saveHistory(); });
+const nameInput = document.createElement('input');
+  nameInput.addEventListener('focus', e => e.target.select()); nameInput.type='text'; nameInput.value = w.label; nameInput.style.minWidth='160px';
+  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); renameWorkout(value, nameInput.value.trim()||w.label); } });
+  nameInput.addEventListener('blur', ()=> renameWorkout(value, nameInput.value.trim()||w.label));
+row.appendChild(label1); row.appendChild(input);
+row.appendChild(nameInput);
+editor.appendChild(palette);
+  // Auto-scroll selected or edge swatch into view so palette is fully visible
+  const sel = palette.querySelector('.preset.selected') || palette.querySelector('.preset');
+  if(sel && typeof sel.scrollIntoView === 'function'){
+    sel.scrollIntoView({block:'nearest', inline:'nearest'});
+  } editor.appendChild(row);
+  container.appendChild(editor);
+}
+
+function setWorkoutColor(value, colorId){
+  const {which, idx} = findTypeIndex(value);
+  const norm = normalizePaletteColor(colorId);
+  if(which==='default'){ defaultWorkouts[idx] = { ...defaultWorkouts[idx], color:norm }; }
+  else if(which==='custom'){ customWorkouts[idx] = { ...customWorkouts[idx], color:norm }; }
+}
+
+function deleteWorkoutType(value){
+  if(value==='rest'){ alert('Cannot delete "Rest".'); return; }
+  const delFrom = (arr)=>{
+    const i = arr.findIndex(x=>x.value===value);
+    if(i>-1){ arr.splice(i,1); return true; }
+    return false;
+  };
+  let removed = delFrom(defaultWorkouts);
+  if(!removed) removed = delFrom(customWorkouts);
+  Object.keys(plan).forEach(wk=>{
+    DAYS.forEach(d=>{
+      if(plan[wk][d].type===value){
+        plan[wk][d].type='rest';
+        plan[wk][d].mileage=0;
+      }
+    });
+  });
+  renderWorkoutGrid(); renderTable(); saveHistory();
+}
+
+/* ===== Table rendering ===== */
+function clearInsertMarkers(){
+  const tbody = document.getElementById('planBody');
+  [...tbody.rows].forEach(r=>{ r.classList.remove('insert-bottom','insert-top'); });
+}
+function showInsertAt(idx){
+  insertIndex = idx;
+  const tbody = document.getElementById('planBody');
+  clearInsertMarkers();
+  if(idx <= 1){
+    const first = tbody.rows[0];
+    if(first) first.classList.add('insert-top');
+    return;
+  }
+  const markRow = tbody.rows[idx-2];
+  if(markRow) markRow.classList.add('insert-bottom');
+}
+
+function renderTable(){
+  const tbody = document.getElementById('planBody');
+  tbody.innerHTML = '';
+  Object.keys(plan).forEach(week=>{
+    const tr = document.createElement('tr');
+    tr.dataset.week = week;
+    tr.addEventListener('dragover', e=> onWeekDragOver(e, week, tr));
+    tr.addEventListener('drop', e=> onWeekDrop(e, week, tr));
+
+    const tdWeek = document.createElement('td');
+    tdWeek.className = 'week-col';
+    const handle = document.createElement('div');
+    handle.className = 'week-handle';
+    handle.setAttribute('draggable','true');
+    handle.title = 'Drag to move this week';
+    handle.addEventListener('dragstart', e=> onWeekDragStart(e, week));
+    handle.addEventListener('dragend', onWeekDragEnd);
+    handle.innerHTML = `<span class="grip"><i class="fa-solid fa-grip-vertical"></i></span><span>${week}</span>`;
+    tdWeek.appendChild(handle);
+    tr.appendChild(tdWeek);
+
+    DAYS.forEach((day, idx)=>{
+      const td = document.createElement('td');
+      td.className = 'day-col';
+      td.style.textAlign = 'left'; td.style.verticalAlign='top';
+      const isEditing = editing && editing.week==week && editing.day===day;
+      const cell = plan[week][day];
+
+      if(isEditing){
+        const wrap = document.createElement('div');
+        wrap.className = 'edit-wrap';
+
+        const sel = document.createElement('select');
+        allTypes().forEach(t=>{
+          const op = document.createElement('option');
+          op.value = t.value; op.textContent = t.label;
+          if(t.value===temp.type) op.selected = true;
+          sel.appendChild(op);
+        });
+        let dist = null;
+        sel.addEventListener('change', e=>{
+          temp.type = e.target.value;
+          if(temp.type==='rest') {
+            temp.mileage = '0';
+            if(dist){ dist.value = '0'; dist.disabled = true; }
+          } else {
+            if(dist){ dist.disabled = false; }
+          }
+        });
+
+        dist = document.createElement('input');
+        dist.type='number'; dist.min='0'; dist.step='1'; dist.placeholder='Distance';
+        dist.value = temp.mileage;
+        dist.disabled = (temp.type==='rest');
+        dist.addEventListener('input', e=> temp.mileage = e.target.value);
+
+        const ta = document.createElement('textarea');
+        ta.rows=2; ta.placeholder='Details (e.g., 6x800m @ 5K pace)';
+        ta.value = temp.details;
+        ta.addEventListener('input', e=> temp.details = e.target.value);
+
+        const actions = document.createElement('div');
+        actions.className='edit-actions';
+
+        const bSave = document.createElement('button');
+        bSave.className='icon-btn green'; bSave.title='Save'; bSave.textContent='Save';
+        bSave.addEventListener('click', saveEditing);
+
+        const bCancel = document.createElement('button');
+        bCancel.className='icon-btn gray'; bCancel.title='Cancel'; bCancel.textContent='Cancel';
+        bCancel.addEventListener('click', cancelEditing);
+
+        actions.appendChild(bSave); actions.appendChild(bCancel);
+        wrap.appendChild(sel); wrap.appendChild(dist); wrap.appendChild(ta); wrap.appendChild(actions);
+        td.appendChild(wrap);
+      }else{
+        const box = document.createElement('div');
+        const colorId = getWorkoutColor(cell.type);
+        box.className = `cell ${/^bg-/.test(colorId) ? colorId : ''}`;
+        if(!/^bg-/.test(colorId)) box.style.background = colorId;
+        box.setAttribute('draggable','true');
+        box.addEventListener('click', ()=> startEditing(week, day));
+        box.addEventListener('dragstart', e=> onDragStart(e, week, day));
+        box.addEventListener('dragover', e=> e.preventDefault());
+        box.addEventListener('drop', e=> onDrop(e, week, day));
+
+        if(showDates && startDate){
+          const db = document.createElement('div');
+          db.className='date-badge';
+          db.textContent = getDateForCell(week, idx);
+          box.appendChild(db);
+        }
+        const t = document.createElement('div');
+        t.className='type';
+        t.textContent = getWorkoutLabel(cell.type);
+        box.appendChild(t);
+
+        if(Number(cell.mileage)>0){
+          const d = document.createElement('div');
+          d.className='dist';
+          d.textContent = cell.mileage;
+          box.appendChild(d);
+        }
+        if(cell.details){
+          const de = document.createElement('div');
+          de.className='details';
+          de.textContent = cell.details;
+          box.appendChild(de);
+        }
+        td.appendChild(box);
+      }
+      tr.appendChild(td);
+    });
+
+    const tdMiles = document.createElement('td');
+    tdMiles.className='mileage-col mileage-td';
+    tdMiles.textContent = weeklyMileage(week);
+    tr.appendChild(tdMiles);
+
+    const tdActions = document.createElement('td');
+    tdActions.className='actions-col';
+    const wrap = document.createElement('div');
+    wrap.className='cell-actions';
+
+    if(week==='1'){
+      const before = document.createElement('button');
+      before.className='icon-btn green'; before.title='Insert week before Week 1';
+      before.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8M8 12h8"></path></svg>`;
+      before.addEventListener('click', ()=> insertWeek(0));
+      wrap.appendChild(before);
+    }
+    const after = document.createElement('button');
+    after.className='icon-btn blue'; after.title='Insert empty week after this';
+    after.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8M8 12h8"></path></svg>`;
+    after.addEventListener('click', ()=> insertWeek(Number(week)));
+    wrap.appendChild(after);
+
+    const dup = document.createElement('button');
+    dup.className='icon-btn blue'; dup.title='Duplicate this week below';
+    dup.innerHTML = `<i class="fa-regular fa-copy" aria-hidden="true"></i>`;
+    dup.addEventListener('click', ()=> duplicateWeek(Number(week)));
+    wrap.appendChild(dup);
+
+    const del = document.createElement('button');
+    del.className='icon-btn red'; del.title='Delete this week';
+    del.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="3 6 5 6 21 6"></polyline>
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+      <path d="M10 11v6"></path>
+      <path d="M14 11v6"></path>
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+    </svg>`;
+    del.addEventListener('click', ()=>{
+      if(Object.keys(plan).length>1) deleteWeek(Number(week));
+      else alert('Cannot delete the last week');
+    });
+    wrap.appendChild(del);
+
+    tdActions.appendChild(wrap);
+    tr.appendChild(tdActions);
+
+    tbody.appendChild(tr);
+  });
+
+  if(insertIndex!=null) showInsertAt(insertIndex);
+}
+
+/* ===== Title edit ===== */
+const titleDisplay = document.getElementById('titleDisplay');
+const titleInput = document.getElementById('titleInput');
+titleDisplay.addEventListener('click', ()=>{
+  titleDisplay.style.display='none';
+  titleInput.style.display='block';
+  titleInput.value = planTitle;
+  titleInput.focus();
+});
+titleInput.addEventListener('blur', ()=>{
+  planTitle = titleInput.value || 'My Training Plan';
+  titleDisplay.textContent = planTitle;
+  titleInput.style.display='none';
+  titleDisplay.style.display='block';
+});
+titleInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); titleInput.blur(); } });
+
+/* ===== Cell edit ===== */
+function startEditing(week, day){
+  const c = plan[week][day] || {type:'rest',details:'',mileage:0};
+  editing = {week,day};
+  temp.type = c.type;
+  temp.details = c.details;
+  temp.mileage = String(c.mileage??'');
+  renderTable();
+}
+function saveEditing(){
+  if(!editing) return;
+  const w = editing.week, d = editing.day;
+  if(!plan[w]) plan[w] = {};
+  const mileageVal = (temp.type === 'rest') ? 0 : (parseFloat(temp.mileage)||0);
+  plan[w][d] = { type: temp.type, details: temp.details || '', mileage: mileageVal };
+  editing = null;
+  temp = { type:'rest', mileage:'', details:'' };
+  renderTable();
+}
+function cancelEditing(){
+  editing = null;
+  temp = { type:'rest', mileage:'', details:'' };
+  renderTable();
+}
+
+/* ===== Drag & drop (cells) ===== */
+function onDragStart(e, week, day){
+  dragged = { week, day, data: {...plan[week][day]} };
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDrop(e, targetWeek, targetDay){
+  e.preventDefault();
+  if(!dragged) return;
+  const { week:sw, day:sd, data } = dragged;
+  if(sw==targetWeek && sd===targetDay){ dragged=null; return; }
+  const tmp = {...plan[targetWeek][targetDay]};
+  plan[targetWeek][targetDay] = data;
+  plan[sw][sd] = tmp;
+  dragged = null;
+  renderTable();
+}
+
+/* ===== Week drag & drop ===== */
+function onWeekDragStart(e, week){
+  draggingWeek = Number(week);
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onWeekDragEnd(){
+  draggingWeek = null;
+  insertIndex = null;
+  clearInsertMarkers();
+}
+function onWeekDragOver(e, targetWeek, tr){
+  if(draggingWeek==null) return;
+  e.preventDefault();
+  const rect = tr.getBoundingClientRect();
+  const isTopHalf = e.clientY < (rect.top + rect.height/2);
+  const targetIdx = Number(targetWeek);
+  const idx = isTopHalf ? targetIdx : targetIdx + 1;
+  showInsertAt(idx);
+}
+function onWeekDrop(e, targetWeek, tr){
+  e.preventDefault();
+  if(draggingWeek==null || insertIndex==null) return;
+  moveWeekToIndex(draggingWeek, insertIndex);
+  draggingWeek = null;
+  insertIndex = null;
+  clearInsertMarkers();
+}
+
+function moveWeekToIndex(fromWeek, toIndex){
+  const order = Object.keys(plan).map(n=>Number(n));
+  const fromPos = order.indexOf(fromWeek);
+  if(fromPos===-1) return;
+  order.splice(fromPos,1);
+  let insertPos = toIndex - 1;
+  if(fromPos < insertPos) insertPos -= 1;
+  if(insertPos < 0) insertPos = 0;
+  if(insertPos > order.length) insertPos = order.length;
+  order.splice(insertPos, 0, fromWeek);
+  const newPlan = {};
+  let cur=1;
+  order.forEach(w=>{ newPlan[cur] = JSON.parse(JSON.stringify(plan[w])); cur++; });
+  plan = newPlan;
+  weeks = Object.keys(plan).length;
+  renderTable();
+}
+
+/* ===== Week ops ===== */
+function insertWeek(afterWeek){
+  const newPlan = {};
+  let cur = 1;
+  if(afterWeek===0){
+    newPlan[1] = {}; DAYS.forEach(d=> newPlan[1][d]={type:'rest',details:'',mileage:0}); cur=2;
+    Object.keys(plan).forEach(w=>{ newPlan[cur]=plan[w]; cur++; });
+  }else{
+    const total = Object.keys(plan).length;
+    for(let w=1; w<=total+1; w++){
+      if(w===afterWeek+1){
+        newPlan[cur]={}; DAYS.forEach(d=> newPlan[cur][d]={type:'rest',details:'',mileage:0}); cur++;
+      }
+      if(w<=total){ newPlan[cur]=plan[w]; cur++; }
+    }
+  }
+  plan = newPlan;
+  weeks = Object.keys(plan).length;
+  renderTable();
+}
+function duplicateWeek(week){
+  const total = Object.keys(plan).length;
+  const newPlan = {};
+  let cur = 1;
+  for(let w=1; w<=total; w++){
+    newPlan[cur] = plan[w]; cur++;
+    if(w===week){
+      const clone = JSON.parse(JSON.stringify(plan[w]));
+      newPlan[cur] = clone; cur++;
+    }
+  }
+  plan = newPlan;
+  weeks = Object.keys(plan).length;
+  renderTable();
+}
+function deleteWeek(weekToDelete){
+  const newPlan={}; let cur=1;
+  Object.keys(plan).forEach(w=>{ if(Number(w)!==weekToDelete){ newPlan[cur]=plan[w]; cur++; } });
+  plan=newPlan;
+  weeks=Object.keys(plan).length;
+  renderTable();
+}
+
+/* ===== Export / Import ===== */
+function exportFile(){
+  const data = { plan, title:planTitle, customWorkouts, defaultWorkouts, showDates, startDate, savedDate:new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=(planTitle.replace(/\s+/g,'_')+'_training_plan.json');
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+function importFile(file){
+  const r = new FileReader();
+  r.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      plan = data.plan || {};
+      planTitle = data.title || 'My Training Plan';
+      customWorkouts = (data.customWorkouts || []).map(w=>({ ...w, color: normalizePaletteColor(w.color) }));
+      defaultWorkouts = (data.defaultWorkouts || JSON.parse(JSON.stringify(DEFAULT_WORKOUT_TYPES))).map(w=>({ ...w, color: normalizePaletteColor(w.color) }));
+      weeks = Object.keys(plan||{}).length;
+      showDates = !!data.showDates;
+      if(data.startDate) startDate = data.startDate;
+      flashMsg('saveMsg','Plan loaded successfully!');
+      enterApp();
+    }catch(err){ flashMsg('saveMsg','Error loading plan file.'); }
+  };
+  r.readAsText(file);
+}
+
+
+function getPrintableHTML(){
+  let rows='';
+  Object.keys(plan).forEach(week=>{
+    let row = `<tr><td style="border:1px solid #ccc;padding:8px;font-weight:400;width:45px;text-align:center;vertical-align:middle;font-size:14px">${week}</td>`;
+    DAYS.forEach((day, idx)=>{
+      const c = plan[week][day];
+      const colorId = getWorkoutColor(c.type);
+      const bg = mapColorToHex(colorId);
+      const details = c.details ? String(c.details).replace(/\n/g,'<br>') : '';
+      const dateStr = (showDates && startDate) ? `<div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">${getDateForCell(week, idx)}</div>` : '';
+      row += `<td style="border:1px solid #ccc;padding:8px;background:${bg};width:140px;vertical-align:top;text-align:left">
+        ${dateStr}
+        <div style="font-weight:700;font-size:12px">${getWorkoutLabel(c.type)}</div>
+        ${Number(c.mileage)>0?`<div style="font-size:11px;margin-top:4px">${c.mileage}</div>`:''}
+        ${details?`<div style="font-size:11px;margin-top:4px;color:#4b5563;word-wrap:break-word">${details}</div>`:''}
+      </td>`;
+    });
+    row += `<td style="border:1px solid #ccc;padding:8px;text-align:center;font-weight:400;color:#2563eb;width:70px;vertical-align:middle;font-size:14px">${weeklyMileage(week)}</td></tr>`;
+    rows += row;
+  });
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(planTitle)}</title>
+  <style>
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, 'Noto Sans';margin:20px}
+    h1{text-align:center;color:#1f2937;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th{background:#1f2937;color:#fff;padding:10px;border:1px solid #ccc;font-size:14px;text-align:center;vertical-align:middle;font-weight:400;line-height:1.9}
+    th:first-child{width:45px}
+    th:nth-child(n+2):nth-child(-n+8){width:140px}
+    th:last-child{width:70px}
+    td{font-size:11px}
+    @page{size:landscape;margin:.5cm}
+  </style></head>
+  <body>
+  <h1>${escapeHtml(planTitle)}</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Week</th>
+        ${DAYS.map(d=>`<th>${d}</th>`).join('')}
+        <th>Weekly<br/>Mileage</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </body></html>`;
+  return html;
+}
+
+function printPlan(){
+  try{
+    const html = getPrintableHTML();
+    // Use a hidden iframe for reliable printing
+    const f = document.createElement('iframe');
+    f.style.position = 'fixed';
+    f.style.right = '0';
+    f.style.bottom = '0';
+    f.style.width = '0';
+    f.style.height = '0';
+    f.style.border = '0';
+    document.body.appendChild(f);
+    const doc = f.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(()=>{
+      f.contentWindow.focus();
+      f.contentWindow.print();
+      setTimeout(()=>document.body.removeChild(f), 250);
+    }, 300);
+  }catch(e){
+    alert('Sorry, printing failed.');
+  }
+}
+
+function downloadPrintableHTML(){
+  const html = getPrintableHTML();
+  const blob = new Blob([html],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; const safeTitle=(planTitle||'My Training Plan').trim().replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ');
+  a.download = `${safeTitle}.html`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+/* ===== Events ===== */
+document.getElementById('createBtn').addEventListener('click', ()=>{
+  const val = Number(document.getElementById('weeksInput').value||12);
+  const n = Math.max(1, Math.min(52, isNaN(val)?12:val));
+  weeks = n;
+  plan = initEmptyPlan(n);
+  planTitle = 'My Training Plan';
+  customWorkouts = [];
+  defaultWorkouts = JSON.parse(JSON.stringify(DEFAULT_WORKOUT_TYPES));
+  showDates = false;
+  startDate = (new Date()).toISOString().split('T')[0];
+  enterApp();
+});
+document.getElementById('loadSavedBtn').addEventListener('click', ()=> tryLoadSaved(true));
+document.getElementById('importFile').addEventListener('change', e=>{
+  if(e.target.files?.[0]) importFile(e.target.files[0]);
+  e.target.value='';
+});
+
+document.getElementById('saveBtn').addEventListener('click', saveToLocal);
+document.getElementById('exportBtn').addEventListener('click', exportFile);
+document.getElementById('importFileTop').addEventListener('change', e=>{
+  if(e.target.files?.[0]) importFile(e.target.files[0]);
+  e.target.value='';
+});
+document.getElementById('downloadHtmlBtn').addEventListener('click', downloadPrintableHTML);
+document.getElementById('printBtn').addEventListener('click', printPlan);
+document.getElementById('newBtn').addEventListener('click', ()=>{
+  plan = {};
+  customWorkouts = [];
+  defaultWorkouts = JSON.parse(JSON.stringify(DEFAULT_WORKOUT_TYPES));
+  planTitle = 'My Training Plan';
+  showDates = false;
+  startDate = (new Date()).toISOString().split('T')[0];
+  renderSplash();
+
+// --- Enhanced auto-select that survives the click ---
+(function(){
+  const isEditable = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (!isEditable(el)) return;
+    try { el.select && el.select(); } catch {}
+    try { el.setSelectionRange && el.setSelectionRange(0, (el.value||'').length); } catch {}
+    // mark so we can prevent the immediate mouseup from collapsing the selection
+    el.__selectedOnFocus = true;
+  });
+
+  const freezeCaret = e => {
+    const el = e.target;
+    if (!isEditable(el) || !el.__selectedOnFocus) return;
+    // Prevent caret re-position on the initial click/tap
+    e.preventDefault();
+    el.__selectedOnFocus = false;
+  };
+
+  // capture phase to intercept before the default sets the caret
+  document.addEventListener('mouseup', freezeCaret, true);
+  document.addEventListener('touchend', freezeCaret, true);
+})();
+
+document.addEventListener('focusin', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    e.target.select?.();
+  }
+});
+
+});
+
+document.getElementById('startDate').addEventListener('change', e=>{
+  startDate = e.target.value;
+  if(startDate && !showDates){
+    showDates = true;
+    document.getElementById('showDatesSwitch').setAttribute('data-on','true');
+  }
+  renderTable();
+});
+document.getElementById('showDatesSwitch').addEventListener('click', e=>{
+  showDates = !showDates;
+  e.currentTarget.setAttribute('data-on', showDates?'true':'false');
+  renderTable();
+});
+
+document.getElementById('addWorkoutBtn').addEventListener('click', addCustomWorkout);
+document.getElementById('newWorkoutName').addEventListener('keydown', e=>{ if(e.key==='Enter') addCustomWorkout(); });
+function addCustomWorkout(){
+  const input = document.getElementById('newWorkoutName');
+  const name = (input.value||'').trim();
+  if(!name) return;
+  if(allTypes().find(w=>w.label.toLowerCase()===name.toLowerCase())){ input.value=''; return; }
+  const rnd = Math.floor(Math.random()*PALETTE.length);
+  customWorkouts.push({ value:'custom_'+Date.now(), label:name, color: PALETTE[rnd].cls });
+  renderWorkoutGrid(); renderTable(); input.value=''; saveHistory();
+}
+
+/* ===== Undo / Redo ===== */
+let historyStack = [];
+let redoStack = [];
+
+function saveHistory() {
+  try {
+    const snapshot = JSON.stringify({ plan, customWorkouts, defaultWorkouts });
+    historyStack.push(snapshot);
+    if (historyStack.length > 100) historyStack.shift();
+    redoStack = [];
+  } catch (e) {}
+}
+function undo() {
+  if (historyStack.length === 0) return;
+  try {
+    redoStack.push(JSON.stringify({ plan, customWorkouts, defaultWorkouts }));
+    const prev = JSON.parse(historyStack.pop());
+    plan = prev.plan; customWorkouts = prev.customWorkouts; defaultWorkouts = prev.defaultWorkouts;
+    renderWorkoutGrid(); renderTable();
+  } catch (e) {}
+}
+function redo() {
+  if (redoStack.length === 0) return;
+  try {
+    historyStack.push(JSON.stringify({ plan, customWorkouts, defaultWorkouts }));
+    const next = JSON.parse(redoStack.pop());
+    plan = next.plan; customWorkouts = next.customWorkouts; defaultWorkouts = next.defaultWorkouts;
+    renderWorkoutGrid(); renderTable();
+  } catch (e) {}
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const ub=document.getElementById('undoBtn'); if(ub) ub.addEventListener('click', undo);
+  const rb=document.getElementById('redoBtn'); if(rb) rb.addEventListener('click', redo);
+});
+
+['saveEditing','insertWeek','deleteWeek','onDrop','tryLoadSaved','importFile','duplicateWeek','moveWeekToIndex','setWorkoutColor','deleteWorkoutType','addCustomWorkout','renameWorkout']
+  .forEach(fn => {
+    const orig = window[fn];
+    if (typeof orig === 'function') {
+      window[fn] = function(...args) {
+        saveHistory();
+        return orig.apply(this, args);
+      }
+    }
+  });
+
+renderSplash();
+
+// --- Enhanced auto-select that survives the click ---
+(function(){
+  const isEditable = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (!isEditable(el)) return;
+    try { el.select && el.select(); } catch {}
+    try { el.setSelectionRange && el.setSelectionRange(0, (el.value||'').length); } catch {}
+    // mark so we can prevent the immediate mouseup from collapsing the selection
+    el.__selectedOnFocus = true;
+  });
+
+  const freezeCaret = e => {
+    const el = e.target;
+    if (!isEditable(el) || !el.__selectedOnFocus) return;
+    // Prevent caret re-position on the initial click/tap
+    e.preventDefault();
+    el.__selectedOnFocus = false;
+  };
+
+  // capture phase to intercept before the default sets the caret
+  document.addEventListener('mouseup', freezeCaret, true);
+  document.addEventListener('touchend', freezeCaret, true);
+})();
+
+document.addEventListener('focusin', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    e.target.select?.();
+  }
+});
+
+</script>
+</body>
+</html>
