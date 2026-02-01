@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<link rel="icon" type="image/x-icon" href="favicon.ico">
 <title>Running Training Plan Builder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
@@ -199,12 +198,20 @@
     .palette{max-height:40vh}
   }
 
+
+.printweeks-input{font-size:inherit;}
+
+#printWeeks{font-size:16px !important;}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 <style>
   body[data-mode="splash"] #kofiContainer { display:none !important; }
   #kofiContainer iframe { border:0; }
+
+.printweeks-input{font-size:inherit;}
+
+#printWeeks{font-size:16px !important;}
 </style>
 
 </head>
@@ -263,11 +270,13 @@
         <div id="showDatesSwitch" class="switch" data-on="false" role="button" aria-label="toggle dates"><div class="knob"></div></div>
         <label for="startDate">Start date:</label>
         <input id="startDate" type="date" class="start-date" />
+        <label for="printWeeksInput" style="margin-left:12px">Print weeks:</label>
+        <input id="printWeeksInput" type="text" placeholder="e.g. 1-8 (or leave blank for all)." style="min-width:260px" />
         <div style="margin-left:auto; display:flex; gap:6px;">
           <button class="icon-btn blue solo" id="undoBtn" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left"></i></button>
           <button class="icon-btn red solo" id="redoBtn" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right"></i></button>
         </div>
-      </div>
+</div>
 
       <div id="saveMsg" class="notice" style="display:none;margin-top:12px"></div>
     </div>
@@ -308,17 +317,19 @@
   </div>
 </div>
 
-    <div id="kofiContainer" style="text-align:center;margin-top:12px;margin-bottom:10px;display:none"></div>
+    
 <script>
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
 const DEFAULT_WORKOUT_TYPES = [
   { value:'rest', label:'Rest', color:'bg-gray' },
   { value:'easy', label:'Easy Run', color:'bg-blue' },
-  { value:'interval', label:'Interval', color:'bg-red' },
+  { value:'interval', label:'Intervals', color:'bg-red' },
   { value:'long', label:'Long Run', color:'bg-purple' },
   { value:'progressive', label:'Progressive Run', color:'bg-indigo' },
   { value:'tempo', label:'Tempo Run', color:'bg-orange' },
+  { value:'hill', label:'Hill', color:'bg-yellow' },
+  { value:'timetrial', label:'Time Trial', color:'bg-teal' },
   { value:'strength', label:'Strength', color:'bg-green' },
   { value:'race', label:'Race', color:'bg-pink' },
 ];
@@ -736,10 +747,52 @@ DAYS.forEach((day, idx)=>{
         });
 
         dist = document.createElement('input');
-        dist.type='number'; dist.min='0'; dist.step='1'; dist.placeholder='Distance';
+        dist.type='number';
+        dist.addEventListener('focus', e => {
+          const el = e.target;
+          // Select all after the browser focuses it
+          requestAnimationFrame(()=>{
+            try{ el.select(); }catch{}
+            try{ el.setSelectionRange(0, (el.value||'').length); }catch{}
+            el.__selectedOnFocus = true;
+          });
+        });
+
+        // Keep selection from collapsing on the click/tap that focused it
+        const freezeDistCaret = (ev) => {
+          const el = ev.target;
+          if(!el.__selectedOnFocus) return;
+          ev.preventDefault();
+          try{ el.select(); }catch{}
+          try{ el.setSelectionRange(0, (el.value||'').length); }catch{}
+          el.__selectedOnFocus = false;
+        };
+        dist.addEventListener('mouseup', freezeDistCaret, true);
+        dist.addEventListener('touchend', freezeDistCaret, true); dist.min='0'; dist.step='1'; dist.placeholder='Distance';
+        // Keep selection on click (Mac/desktop): prevent the click from moving caret to the end
+        dist.addEventListener('mousedown', (ev) => {
+          // Only handle primary button
+          if(ev.button !== undefined && ev.button !== 0) return;
+          ev.preventDefault();
+          dist.focus();
+          try{ dist.select(); }catch{}
+          try{ dist.setSelectionRange(0, (dist.value||'').length); }catch{}
+        });
+        dist.addEventListener('mouseup', (ev) => {
+          // Prevent the focus-click mouseup from collapsing selection
+          ev.preventDefault();
+        });
+
         dist.value = temp.mileage;
         dist.disabled = (temp.type==='rest');
-        dist.addEventListener('input', e=> temp.mileage = e.target.value);
+        dist.addEventListener('input', e=>{
+          let v = (e.target.value||'');
+          // allow digits, dot, comma only
+          v = v.replace(/[^0-9.,]/g,'');
+          // normalise comma to dot for parsing
+          temp.mileage = v;
+          e.target.value = v;
+        });
 
         const ta = document.createElement('textarea');
         ta.rows=2; ta.placeholder='Details (e.g., 6x800m @ 5K pace)';
@@ -758,6 +811,16 @@ DAYS.forEach((day, idx)=>{
         bCancel.addEventListener('click', cancelEditing);
 
         actions.appendChild(bSave); actions.appendChild(bCancel);
+        const bCopy = document.createElement('button');
+        bCopy.className='icon-btn blue'; bCopy.title='Copy this workout'; bCopy.innerHTML='<i class="fa-regular fa-copy"></i>';
+        bCopy.addEventListener('click', ()=>{ copyWorkoutFromCell(week, day); });
+
+        const bPaste = document.createElement('button');
+        bPaste.className='icon-btn red'; bPaste.title='Paste copied workout here'; bPaste.innerHTML='<i class="fa-solid fa-paste"></i>';
+        bPaste.addEventListener('click', ()=>{ pasteWorkoutToCell(week, day); });
+
+        actions.appendChild(bCopy); actions.appendChild(bPaste);
+
         wrap.appendChild(sel); wrap.appendChild(dist); wrap.appendChild(ta); wrap.appendChild(actions);
         td.appendChild(wrap);
       }else{
@@ -1133,9 +1196,53 @@ function importFile(file){
 }
 
 
-function getPrintableHTML(){
+
+function parseWeekSpec(spec, maxWeeks){
+  const s = (spec||'').trim();
+  if(!s || s.toLowerCase()==='all'){
+    return Array.from({length:maxWeeks}, (_,i)=>i+1);
+  }
+  const parts = s.split(',').map(x=>x.trim()).filter(Boolean);
+  const out = new Set();
+  for(const part of parts){
+    // allow spaces around dash
+    const mRange = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    const mOne = part.match(/^(\d+)$/);
+    if(mRange){
+      let a = Number(mRange[1]), b = Number(mRange[2]);
+      if(!Number.isFinite(a) || !Number.isFinite(b) || a<1 || b<1) return null;
+      if(a>b){ const t=a; a=b; b=t; }
+      for(let w=a; w<=b; w++){
+        if(w>=1 && w<=maxWeeks) out.add(w);
+      }
+    }else if(mOne){
+      const w = Number(mOne[1]);
+      if(Number.isFinite(w) && w>=1 && w<=maxWeeks) out.add(w);
+      else return null;
+    }else{
+      return null;
+    }
+  }
+  const arr = Array.from(out);
+  arr.sort((a,b)=>a-b);
+  return arr.length ? arr : null;
+}
+
+function getSelectedPrintWeeks(){
+  const maxWeeks = Object.keys(plan||{}).length || 0;
+  const input = document.getElementById('printWeeksInput');
+  const spec = input ? input.value : '';
+  return parseWeekSpec(spec, maxWeeks);
+}
+
+function getPrintableHTML(weeksToPrint){
   let rows='';
-  Object.keys(plan).forEach(week=>{
+  const weeksList = (Array.isArray(weeksToPrint) && weeksToPrint.length)
+    ? weeksToPrint.slice().map(n=>Number(n)).filter(n=>Number.isFinite(n))
+    : Object.keys(plan).map(n=>Number(n));
+  weeksList.sort((a,b)=>a-b);
+  weeksList.forEach(wNum=>{
+    const week = String(wNum);
     let row = `<tr><td style="border:1px solid #ccc;padding:8px;font-weight:400;width:45px;text-align:center;vertical-align:middle;font-size:14px">${week}</td>`;
     DAYS.forEach((day, idx)=>{
       const c = plan[week][day];
@@ -1165,7 +1272,11 @@ function getPrintableHTML(){
     th:last-child{width:70px}
     td{font-size:11px}
     @page{size:landscape;margin:.5cm}
-  </style></head>
+  
+.printweeks-input{font-size:inherit;}
+
+#printWeeks{font-size:16px !important;}
+</style></head>
   <body>
   <h1>${escapeHtml(planTitle)}</h1>
   <table>
@@ -1184,7 +1295,9 @@ function getPrintableHTML(){
 
 function printPlan(){
   try{
-    const html = getPrintableHTML();
+    const weeksToPrint = getSelectedPrintWeeks();
+    if(!weeksToPrint){ alert('Invalid weeks. Use e.g. 1-4,6,8-10'); return; }
+    const html = getPrintableHTML(weeksToPrint);
     // Use a hidden iframe for reliable printing
     const f = document.createElement('iframe');
     f.style.position = 'fixed';
@@ -1207,7 +1320,9 @@ function printPlan(){
 }
 
 function downloadPrintableHTML(){
-  const html = getPrintableHTML();
+  const weeksToPrint = getSelectedPrintWeeks();
+    if(!weeksToPrint){ alert('Invalid weeks. Use e.g. 1-4,6,8-10'); return; }
+    const html = getPrintableHTML(weeksToPrint);
   const blob = new Blob([html],{type:'text/html'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1317,6 +1432,39 @@ function addCustomWorkout(){
 }
 
 /* ===== Undo / Redo ===== */
+/* ===== Copy / Paste Workout ===== */
+let copiedWorkout = null;
+
+function copyWorkoutFromCell(week, day){
+  try{
+    const c = plan && plan[week] && plan[week][day];
+    if(!c) return;
+    copiedWorkout = JSON.parse(JSON.stringify(c));
+    flashMsg('saveMsg', 'Workout copied.');
+  }catch(e){}
+}
+
+function pasteWorkoutToCell(week, day){
+  if(!copiedWorkout) { flashMsg('saveMsg','Nothing copied yet.'); return; }
+  try{
+    // If the editor is open for this cell, paste into the editor (so it becomes ONE undo when you press Save)
+    if(editing && editing.week==week && editing.day===day){
+      temp.type = copiedWorkout.type;
+      temp.details = copiedWorkout.details || '';
+      temp.mileage = String(copiedWorkout.mileage ?? '');
+      renderTable();
+      flashMsg('saveMsg', 'Workout pasted.');
+      return;
+    }
+
+    // Otherwise, paste straight into the plan (one undo step)
+    saveHistory();
+    plan[week][day] = JSON.parse(JSON.stringify(copiedWorkout));
+    renderTable();
+    flashMsg('saveMsg', 'Workout pasted.');
+  }catch(e){}
+}
+
 let historyStack = [];
 let redoStack = [];
 
@@ -1346,6 +1494,38 @@ function redo() {
     renderWorkoutGrid(); renderTable();
   } catch (e) {}
 }
+
+// ===== Keyboard shortcuts for Undo / Redo =====
+document.addEventListener("keydown", (e) => {
+  const key = e.key.toLowerCase();
+
+  // Ignore shortcuts when typing in inputs/textareas
+  if (
+    e.target.tagName === "INPUT" ||
+    e.target.tagName === "TEXTAREA" ||
+    e.target.isContentEditable
+  ) {
+    return;
+  }
+
+  // Undo: Ctrl+Z or Cmd+Z
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === "z") {
+    e.preventDefault();
+    undo();
+  }
+
+  // Redo: Ctrl+Y OR Ctrl+Shift+Z OR Cmd+Shift+Z
+  if (
+    ((e.ctrlKey || e.metaKey) && e.shiftKey && key === "z") ||
+    (e.ctrlKey && key === "y")
+  ) {
+    e.preventDefault();
+    redo();
+  }
+});
+
+
+
 document.addEventListener('DOMContentLoaded', ()=>{
   const ub=document.getElementById('undoBtn'); if(ub) ub.addEventListener('click', undo);
   const rb=document.getElementById('redoBtn'); if(rb) rb.addEventListener('click', redo);
@@ -1398,49 +1578,6 @@ document.addEventListener('focusin', e => {
   }
 });
 
-
-// ---- Ko-fi inline button (Widget_2 in sandbox iframe) ----
-(function(){
-  function showKoFi(){
-    var c = document.getElementById('kofiContainer');
-    if(!c || c.dataset.rendered === '1') return;
-    c.style.display = 'block';
-    var f = document.createElement('iframe');
-    f.title = 'Ko-fi Support Button';
-    f.style.width = '250px';
-    f.style.height = '60px';
-    f.style.border = '0';
-    f.style.overflow = 'hidden';
-    f.setAttribute('scrolling', 'no');
-    c.appendChild(f);
-    var doc = f.contentWindow.document;
-    doc.open();
-    doc.write(`<!doctype html>
-<html><head><meta charset="utf-8"><base target="_blank"></head>
-<body style="margin:0;padding:0;text-align:center;">
-  <script src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'><\/script>
-  <script>
-    try { kofiwidget2.init('Support me', '#794bc4', 'S6S01NHQ4L'); kofiwidget2.draw(); } catch(e){}
-  <\/script>
-</body></html>`);
-    doc.close();
-    c.dataset.rendered = '1';
-  }
-
-  var _enterApp = window.enterApp;
-  window.enterApp = function(){
-    if (typeof _enterApp === 'function') _enterApp.apply(this, arguments);
-    try { showKoFi(); } catch(e){}
-  };
-
-  var _renderSplash = window.renderSplash;
-  window.renderSplash = function(){
-    if (typeof _renderSplash === 'function') _renderSplash.apply(this, arguments);
-    var mode = document.body.getAttribute('data-mode');
-    var c = document.getElementById('kofiContainer');
-    if (c) c.style.display = (mode === 'splash') ? 'none' : (c.dataset.rendered==='1' ? 'block' : 'none');
-  };
-})();
 
 </script>
 
